@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 更新行号
     function updateLineNumbers() {
         const lines = editor.value.split('\n');
-        lineNumbers.innerHTML = lines.map((_, i) => `<div>${i + 1}</div>`).join('');
+        lineNumbers.innerHTML = lines.map((_, i) => `<div style="line-height: 1.5; padding: 0; margin: 0;">${i + 1}</div>`).join('');
     }
 
     // 初始化行号
