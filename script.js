@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // 获取DOM元素
     const editor = document.getElementById('editor');
     const jsonDisplay = document.getElementById('jsonDisplay');
@@ -20,41 +20,59 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初始化行号
     updateLineNumbers();
 
+    // 动态加载本地打包的 VSCode JSON 服务
+    const { getLanguageService, TextDocument } = await import('./vendor/json-service.bundle.js');
+
     // 监听输入更新行号
     editor.addEventListener('input', updateLineNumbers);
     
     // 同步滚动
+    const foldButtons = document.getElementById('foldButtons');
     editor.addEventListener('scroll', function() {
         lineNumbers.scrollTop = editor.scrollTop;
-        foldButtons.scrollTop = editor.scrollTop;
+        if (foldButtons) foldButtons.scrollTop = editor.scrollTop;
     });
     
     // JSON显示区域滚动时同步行号和折叠按钮
     jsonDisplay.addEventListener('scroll', function() {
         lineNumbers.scrollTop = jsonDisplay.scrollTop;
-        foldButtons.scrollTop = jsonDisplay.scrollTop;
+        if (foldButtons) foldButtons.scrollTop = jsonDisplay.scrollTop;
     });
 
-    // 校验并格式化JSON
+    function applyEdits(text, edits) {
+        let result = text;
+        const doc = TextDocument.create('inmemory://model/1', 'json', 1, text);
+        for (let i = edits.length - 1; i >= 0; i--) {
+            const edit = edits[i];
+            const startOffset = doc.offsetAt(edit.range.start);
+            const endOffset = doc.offsetAt(edit.range.end);
+            result = result.substring(0, startOffset) + edit.newText + result.substring(endOffset);
+        }
+        return result;
+    }
+
+    function formatIncompleteJson(incompleteJsonString) {
+        const jsonService = getLanguageService({});
+        const document = TextDocument.create('inmemory://model/1', 'json', 1, incompleteJsonString);
+        const formattingOptions = { tabSize: 4, insertSpaces: true, trimTrailingWhitespace: true, insertFinalNewline: false };
+        const range = { start: { line: 0, character: 0 }, end: document.positionAt(incompleteJsonString.length) };
+        const edits = jsonService.format(document, range, formattingOptions);
+        return applyEdits(incompleteJsonString, edits);
+    }
+
     validateBtn.addEventListener('click', function() {
         try {
-            let json;
-            // 尝试解析JSON
             if (editor.value.trim() === '') {
                 showStatus('请输入JSON字符串', false);
                 return;
             }
-            
-            json = JSON.parse(editor.value);
-            const formatted = JSON.stringify(json, null, 4);
+            const formatted = formatIncompleteJson(editor.value);
             editor.value = formatted;
             updateLineNumbers();
-            showStatus('JSON校验成功！', true);
-            
-            // 显示带语法高亮的JSON
+            showStatus('JSON格式化成功！', true);
             displayFormattedJson(formatted);
         } catch (e) {
-            showStatus('JSON校验失败：' + e.message, false);
+            showStatus('JSON格式化失败：' + e.message, false);
             jsonDisplay.style.display = 'none';
             editor.style.display = 'block';
         }

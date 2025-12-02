@@ -1,0 +1,17 @@
+{
+  "name": "trae",
+  "version": "1.0.0",
+  "description": "一个简单而功能强大的JSON工具页面，提供JSON校验、格式化、压缩、转义和去除转义功能。",
+  "main": "script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "esbuild": "^0.27.0",
+    "vscode-json-languageservice": "^5.6.4",
+    "vscode-languageserver-types": "^3.17.5"
+  }
+}
