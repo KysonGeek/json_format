@@ -40,4 +40,6 @@
 
 ## 本地运行
 
-直接在浏览器中打开`index.html`文件即可使用该工具。
+```python
+python3 -m http.server 8000
+```
