@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const escapeBtn = document.getElementById('escapeBtn');
     const unescapeBtn = document.getElementById('unescapeBtn');
     const base64DecodeBtn = document.getElementById('base64DecodeBtn');
+    const lombokToJsonBtn = document.getElementById('lombokToJsonBtn');
     const copyBtn = document.getElementById('copyBtn');
 
     // 更新行号
@@ -60,6 +61,90 @@ document.addEventListener('DOMContentLoaded', async function() {
         return applyEdits(incompleteJsonString, edits);
     }
 
+    function lombokToJson(str) {
+        if (!str) return null;
+        str = str.trim();
+        let result = {};
+        let stack = [];
+        let currentKey = "";
+        let buffer = "";
+        let currentContainer = result;
+        const flushBuffer = () => {
+            let val = buffer.trim();
+            if (!val) return;
+            if (val === "null") val = null;
+            else if (val === "true") val = true;
+            else if (val === "false") val = false;
+            else if (!isNaN(Number(val))) {
+                if (val.length < 16) {
+                    val = Number(val);
+                }
+            }
+            if (Array.isArray(currentContainer)) {
+                currentContainer.push(val);
+            } else {
+                if (currentKey) {
+                    currentContainer[currentKey] = val;
+                    currentKey = "";
+                }
+            }
+            buffer = "";
+        };
+        for (let i = 0; i < str.length; i++) {
+            const char = str[i];
+            if (char === '(') {
+                let newObj = {};
+                if (Array.isArray(currentContainer)) {
+                    currentContainer.push(newObj);
+                } else if (currentKey) {
+                    currentContainer[currentKey] = newObj;
+                } else {
+                    newObj = result;
+                }
+                stack.push({ container: currentContainer, key: currentKey });
+                currentContainer = newObj;
+                currentKey = "";
+                buffer = "";
+            } else if (char === ')') {
+                flushBuffer();
+                const context = stack.pop();
+                if (context) {
+                    currentContainer = context.container;
+                    currentKey = context.key;
+                    if (!Array.isArray(currentContainer)) currentKey = "";
+                }
+            } else if (char === '[') {
+                let newArr = [];
+                if (currentKey) {
+                    currentContainer[currentKey] = newArr;
+                }
+                stack.push({ container: currentContainer, key: currentKey });
+                currentContainer = newArr;
+                currentKey = "";
+                buffer = "";
+            } else if (char === ']') {
+                flushBuffer();
+                const context = stack.pop();
+                if (context) {
+                    currentContainer = context.container;
+                    currentKey = "";
+                }
+            } else if (char === '=' || char === ':') {
+                if (!currentKey) {
+                    currentKey = buffer.trim();
+                    buffer = "";
+                } else {
+                    buffer += char;
+                }
+            } else if (char === ',') {
+                flushBuffer();
+            } else {
+                buffer += char;
+            }
+        }
+        return result;
+    }
+
     validateBtn.addEventListener('click', function() {
         try {
             if (editor.value.trim() === '') {
@@ -95,6 +180,25 @@ document.addEventListener('DOMContentLoaded', async function() {
             editor.style.display = 'block';
         } catch (e) {
             showStatus('JSON压缩失败：' + e.message, false);
+        }
+    });
+
+    if (lombokToJsonBtn) lombokToJsonBtn.addEventListener('click', function() {
+        try {
+            if (editor.value.trim() === '') {
+                showStatus('请输入Lombok toString字符串', false);
+                return;
+            }
+            const obj = lombokToJson(editor.value);
+            const formatted = JSON.stringify(obj, null, 4);
+            editor.value = formatted;
+            updateLineNumbers();
+            showStatus('Lombok转JSON成功！', true);
+            displayFormattedJson(formatted);
+        } catch (e) {
+            showStatus('Lombok转JSON失败：' + e.message, false);
+            jsonDisplay.style.display = 'none';
+            editor.style.display = 'block';
         }
     });
 
