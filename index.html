@@ -15,12 +15,16 @@
             <button id="unescapeBtn">去除转义</button>
             <button id="base64DecodeBtn">Base64解密</button>
             <button id="lombokToJsonBtn">Lombok转JSON</button>
+            <button id="diffBtn">JSON对比</button>
             <button id="copyBtn">复制</button>
         </div>
         <div class="editor-container">
             <div class="line-numbers" id="lineNumbers"></div>
             <textarea id="editor" class="editor" spellcheck="false" placeholder="请输入JSON字符串..."></textarea>
             <div id="jsonDisplay" class="json-display"></div>
+        </div>
+        <div id="diffContainer" class="diff-container hidden">
+            <iframe id="diffFrame" src="json-diff/index.html" frameborder="0"></iframe>
         </div>
         <div id="status" class="status hidden"></div>
     </div>

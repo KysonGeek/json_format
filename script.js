@@ -11,8 +11,19 @@ document.addEventListener('DOMContentLoaded', async function() {
     const base64DecodeBtn = document.getElementById('base64DecodeBtn');
     const lombokToJsonBtn = document.getElementById('lombokToJsonBtn');
     const copyBtn = document.getElementById('copyBtn');
+    const diffBtn = document.getElementById('diffBtn');
+    const diffContainer = document.getElementById('diffContainer');
+    const diffFrame = document.getElementById('diffFrame');
+    const editorContainer = document.querySelector('.editor-container');
 
     // 更新行号
+    function switchToEditor() {
+        diffContainer.style.display = 'none';
+        diffContainer.classList.add('hidden');
+        editorContainer.style.display = 'flex';
+        jsonDisplay.style.display = 'none';
+        editor.style.display = 'block';
+    }
     function updateLineNumbers() {
         const lines = editor.value.split('\n');
         lineNumbers.innerHTML = lines.map((_, i) => `<div style="line-height: 1.5; padding: 0; margin: 0;">${i + 1}</div>`).join('');
@@ -146,6 +157,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     validateBtn.addEventListener('click', function() {
+        switchToEditor();
         try {
             if (editor.value.trim() === '') {
                 showStatus('请输入JSON字符串', false);
@@ -165,6 +177,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // 压缩JSON
     compressBtn.addEventListener('click', function() {
+        switchToEditor();
         try {
             if (editor.value.trim() === '') {
                 showStatus('请输入JSON字符串', false);
@@ -184,6 +197,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     if (lombokToJsonBtn) lombokToJsonBtn.addEventListener('click', function() {
+        switchToEditor();
         try {
             if (editor.value.trim() === '') {
                 showStatus('请输入Lombok toString字符串', false);
@@ -204,6 +218,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // 转义JSON
     escapeBtn.addEventListener('click', function() {
+        switchToEditor();
         try {
             if (editor.value.trim() === '') {
                 showStatus('请输入字符串', false);
@@ -223,6 +238,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // 去除转义
     unescapeBtn.addEventListener('click', function() {
+        switchToEditor();
         try {
             if (editor.value.trim() === '') {
                 showStatus('请输入字符串', false);
@@ -428,6 +444,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
     // Base64解密功能
     base64DecodeBtn.addEventListener('click', function() {
+        switchToEditor();
         try {
             if (editor.value.trim() === '') {
                 showStatus('请输入Base64编码字符串', false);
@@ -459,4 +476,24 @@ document.addEventListener('DOMContentLoaded', async function() {
             showStatus('Base64解密失败：' + e.message, false);
         }
     });
+    diffBtn.addEventListener('click', function() {
+        diffContainer.classList.remove('hidden');
+        diffContainer.style.display = 'block';
+        editorContainer.style.display = 'none';
+        jsonDisplay.style.display = 'none';
+        editor.style.display = 'none';
+        status.classList.add('hidden');
+        const leftText = editor.value || '';
+        const send = () => {
+            try {
+                diffFrame.contentWindow.postMessage({ type: 'json-diff-data', left: leftText, right: '' }, '*');
+            } catch (e) {}
+        };
+        if (diffFrame.contentWindow) {
+            send();
+        } else {
+            diffFrame.addEventListener('load', send, { once: true });
+        }
+    });
+    
 });

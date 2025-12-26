@@ -79,6 +79,26 @@ button:active {
     margin-top: 10px;
 }
 
+.diff-container {
+    display: none;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    flex: 1;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-top: 10px;
+    background-color: #fff;
+}
+
+.diff-container iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background-color: #fff;
+}
+
+
 /* 行号样式 */
 .line-numbers {
     width: 50px;
