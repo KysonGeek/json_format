@@ -15,8 +15,36 @@
             <button id="unescapeBtn">去除转义</button>
             <button id="base64DecodeBtn">Base64解密</button>
             <button id="lombokToJsonBtn">Lombok转JSON</button>
+            <button id="timeConverterBtn">时间戳转换</button>
             <button id="diffBtn">JSON对比</button>
             <button id="copyBtn">复制</button>
+        </div>
+        <div class="time-converter hidden">
+            <div class="time-converter-header">
+                <div class="option-group">
+                    <span class="option-label">时区</span>
+                    <select id="timeZoneOffsetSelect"></select>
+                </div>
+                <div class="option-group">
+                    <span class="option-label">单位</span>
+                    <select id="timestampUnitSelect">
+                        <option value="auto">自动</option>
+                        <option value="milliseconds">毫秒</option>
+                        <option value="seconds">秒</option>
+                    </select>
+                </div>
+                <button id="timeConvertBtn">转换</button>
+            </div>
+            <div class="time-converter-body">
+                <div class="time-panel">
+                    <div class="panel-title">时间戳</div>
+                    <textarea id="timestampInput" class="time-textarea" spellcheck="false" wrap="off" placeholder="时间戳，每行一个"></textarea>
+                </div>
+                <div class="time-panel">
+                    <div class="panel-title">时间字符串</div>
+                    <textarea id="timeInput" class="time-textarea" spellcheck="false" wrap="off" placeholder="yyyy-MM-dd HH:mm:ss，每行一个"></textarea>
+                </div>
+            </div>
         </div>
         <div class="editor-container">
             <div class="line-numbers" id="lineNumbers"></div>

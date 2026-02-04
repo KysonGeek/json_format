@@ -10,19 +10,68 @@ document.addEventListener('DOMContentLoaded', async function() {
     const unescapeBtn = document.getElementById('unescapeBtn');
     const base64DecodeBtn = document.getElementById('base64DecodeBtn');
     const lombokToJsonBtn = document.getElementById('lombokToJsonBtn');
+    const timeConverterBtn = document.getElementById('timeConverterBtn');
+    const timeConvertBtn = document.getElementById('timeConvertBtn');
+    const timestampInput = document.getElementById('timestampInput');
+    const timeInput = document.getElementById('timeInput');
+    const timeZoneOffsetSelect = document.getElementById('timeZoneOffsetSelect');
+    const timestampUnitSelect = document.getElementById('timestampUnitSelect');
     const copyBtn = document.getElementById('copyBtn');
     const diffBtn = document.getElementById('diffBtn');
     const diffContainer = document.getElementById('diffContainer');
     const diffFrame = document.getElementById('diffFrame');
     const editorContainer = document.querySelector('.editor-container');
+    const timeConverter = document.querySelector('.time-converter');
+    let isSyncingTimeScroll = false;
 
     // 更新行号
     function switchToEditor() {
         diffContainer.style.display = 'none';
         diffContainer.classList.add('hidden');
+        if (timeConverter) timeConverter.classList.add('hidden');
         editorContainer.style.display = 'flex';
         jsonDisplay.style.display = 'none';
         editor.style.display = 'block';
+    }
+
+    function showTimeConverter() {
+        if (timeConverter) timeConverter.classList.remove('hidden');
+        diffContainer.style.display = 'none';
+        diffContainer.classList.add('hidden');
+        editorContainer.style.display = 'none';
+        jsonDisplay.style.display = 'none';
+        editor.style.display = 'none';
+        status.classList.add('hidden');
+    }
+
+    function syncTimePanelScroll(source, target) {
+        if (!source || !target || isSyncingTimeScroll) return;
+        isSyncingTimeScroll = true;
+        target.scrollTop = source.scrollTop;
+        target.scrollLeft = source.scrollLeft;
+        requestAnimationFrame(() => {
+            isSyncingTimeScroll = false;
+        });
+    }
+
+    if (timestampInput && timeInput) {
+        timestampInput.addEventListener('scroll', () => syncTimePanelScroll(timestampInput, timeInput));
+        timeInput.addEventListener('scroll', () => syncTimePanelScroll(timeInput, timestampInput));
+    }
+
+    function resetTimePanelPosition() {
+        if (timestampInput) {
+            timestampInput.scrollTop = 0;
+            timestampInput.scrollLeft = 0;
+            timestampInput.selectionStart = 0;
+            timestampInput.selectionEnd = 0;
+        }
+        if (timeInput) {
+            timeInput.scrollTop = 0;
+            timeInput.scrollLeft = 0;
+            timeInput.selectionStart = 0;
+            timeInput.selectionEnd = 0;
+        }
     }
     function updateLineNumbers() {
         const lines = editor.value.split('\n');
@@ -31,6 +80,23 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // 初始化行号
     updateLineNumbers();
+
+    function formatOffsetLabel(offset) {
+        if (offset === 0) return '+0';
+        return offset > 0 ? `+${offset}` : `${offset}`;
+    }
+
+    function populateTimeZoneOffsets() {
+        if (!timeZoneOffsetSelect) return;
+        const options = [];
+        for (let i = -12; i <= 14; i += 1) {
+            options.push(formatOffsetLabel(i));
+        }
+        timeZoneOffsetSelect.innerHTML = options.map(offset => `<option value="${offset}">${offset}</option>`).join('');
+        timeZoneOffsetSelect.value = '+8';
+    }
+
+    populateTimeZoneOffsets();
 
     // 动态加载本地打包的 VSCode JSON 服务
     const { getLanguageService, TextDocument } = await import('./vendor/json-service.bundle.js');
@@ -70,6 +136,113 @@ document.addEventListener('DOMContentLoaded', async function() {
         const range = { start: { line: 0, character: 0 }, end: document.positionAt(incompleteJsonString.length) };
         const edits = jsonService.format(document, range, formattingOptions);
         return applyEdits(incompleteJsonString, edits);
+    }
+
+    function parseOffsetHours(offsetText) {
+        if (typeof offsetText !== 'string') return 0;
+        const trimmed = offsetText.trim();
+        if (trimmed === '0') return 0;
+        const match = trimmed.match(/^([+-])(\d{1,2})$/);
+        if (!match) return 0;
+        const hours = Number(match[2]);
+        if (!Number.isFinite(hours)) return 0;
+        return match[1] === '-' ? -hours : hours;
+    }
+
+    function formatWithOffset(timestampMs, offsetHours) {
+        const date = new Date(timestampMs + offsetHours * 3600 * 1000);
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        const hour = String(date.getUTCHours()).padStart(2, '0');
+        const minute = String(date.getUTCMinutes()).padStart(2, '0');
+        const second = String(date.getUTCSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+    }
+
+    function parseTimestampToMs(input, unit) {
+        const trimmed = input.trim();
+        if (!/^-?\d+$/.test(trimmed)) return null;
+        const numberValue = Number(trimmed);
+        if (!Number.isFinite(numberValue)) return null;
+        if (unit === 'seconds') return numberValue * 1000;
+        if (unit === 'milliseconds') return numberValue;
+        const digits = trimmed.startsWith('-') ? trimmed.slice(1) : trimmed;
+        if (digits.length === 10) return numberValue * 1000;
+        if (digits.length === 13) return numberValue;
+        return numberValue;
+    }
+
+    function parseDateTimeParts(input) {
+        const match = input.trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+        if (!match) return null;
+        return {
+            year: Number(match[1]),
+            month: Number(match[2]),
+            day: Number(match[3]),
+            hour: Number(match[4]),
+            minute: Number(match[5]),
+            second: Number(match[6])
+        };
+    }
+
+    function isValidDateParts(parts) {
+        const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second));
+        return date.getUTCFullYear() === parts.year
+            && date.getUTCMonth() === parts.month - 1
+            && date.getUTCDate() === parts.day
+            && date.getUTCHours() === parts.hour
+            && date.getUTCMinutes() === parts.minute
+            && date.getUTCSeconds() === parts.second;
+    }
+
+    function convertTimestampsToTime(lines, offsetHours, unit) {
+        let invalidCount = 0;
+        const output = lines.map(line => {
+            if (line.trim() === '') return '';
+            const ms = parseTimestampToMs(line, unit);
+            if (ms === null || !Number.isFinite(ms)) {
+                invalidCount += 1;
+                return `无效: ${line}`;
+            }
+            const date = new Date(ms);
+            if (isNaN(date.getTime())) {
+                invalidCount += 1;
+                return `无效: ${line}`;
+            }
+            return formatWithOffset(ms, offsetHours);
+        });
+        return { output, invalidCount };
+    }
+
+    function convertTimesToTimestamp(lines, offsetHours, unit) {
+        let invalidCount = 0;
+        const output = lines.map(line => {
+            if (line.trim() === '') return '';
+            const parts = parseDateTimeParts(line);
+            if (!parts || !isValidDateParts(parts)) {
+                invalidCount += 1;
+                return `无效: ${line}`;
+            }
+            const offsetMs = offsetHours * 3600 * 1000;
+            const timestampMs = Date.UTC(
+                parts.year,
+                parts.month - 1,
+                parts.day,
+                parts.hour,
+                parts.minute,
+                parts.second
+            ) - offsetMs;
+            if (!Number.isFinite(timestampMs)) {
+                invalidCount += 1;
+                return `无效: ${line}`;
+            }
+            if (unit === 'seconds') {
+                return String(Math.trunc(timestampMs / 1000));
+            }
+            return String(timestampMs);
+        });
+        return { output, invalidCount };
     }
 
     function lombokToJson(str) {
@@ -214,6 +387,49 @@ document.addEventListener('DOMContentLoaded', async function() {
             jsonDisplay.style.display = 'none';
             editor.style.display = 'block';
         }
+    });
+
+    if (timeConvertBtn) timeConvertBtn.addEventListener('click', function() {
+        try {
+            const leftValue = timestampInput ? timestampInput.value : '';
+            const rightValue = timeInput ? timeInput.value : '';
+            const hasLeft = leftValue.trim() !== '';
+            const hasRight = rightValue.trim() !== '';
+            if (!hasLeft && !hasRight) {
+                showStatus('请输入时间戳或时间字符串', false);
+                return;
+            }
+            const offsetHours = parseOffsetHours(timeZoneOffsetSelect ? timeZoneOffsetSelect.value : '+0');
+            if (hasLeft) {
+                const lines = leftValue.split('\n');
+                const unit = timestampUnitSelect ? timestampUnitSelect.value : 'auto';
+                const { output, invalidCount } = convertTimestampsToTime(lines, offsetHours, unit);
+                if (timeInput) timeInput.value = output.join('\n');
+                if (invalidCount > 0) {
+                    showStatus(`转换完成，${invalidCount} 行无效`, false);
+                } else {
+                    showStatus('时间戳转换成功！', true);
+                }
+                resetTimePanelPosition();
+                return;
+            }
+            const unit = timestampUnitSelect ? timestampUnitSelect.value : 'milliseconds';
+            const lines = rightValue.split('\n');
+            const { output, invalidCount } = convertTimesToTimestamp(lines, offsetHours, unit);
+            if (timestampInput) timestampInput.value = output.join('\n');
+            if (invalidCount > 0) {
+                showStatus(`转换完成，${invalidCount} 行无效`, false);
+            } else {
+                showStatus('时间转换成功！', true);
+            }
+            resetTimePanelPosition();
+        } catch (e) {
+            showStatus('时间转换失败：' + e.message, false);
+        }
+    });
+
+    if (timeConverterBtn) timeConverterBtn.addEventListener('click', function() {
+        showTimeConverter();
     });
 
     // 转义JSON
@@ -477,6 +693,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
     diffBtn.addEventListener('click', function() {
+        if (timeConverter) timeConverter.classList.add('hidden');
         diffContainer.classList.remove('hidden');
         diffContainer.style.display = 'block';
         editorContainer.style.display = 'none';
