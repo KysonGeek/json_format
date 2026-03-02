@@ -138,6 +138,36 @@ document.addEventListener('DOMContentLoaded', async function() {
         return applyEdits(incompleteJsonString, edits);
     }
 
+    function minifyJsonText(jsonText) {
+        let result = '';
+        let inString = false;
+        let isEscaped = false;
+        for (let i = 0; i < jsonText.length; i++) {
+            const ch = jsonText[i];
+            if (inString) {
+                result += ch;
+                if (isEscaped) {
+                    isEscaped = false;
+                } else if (ch === '\\') {
+                    isEscaped = true;
+                } else if (ch === '"') {
+                    inString = false;
+                }
+                continue;
+            }
+
+            if (ch === '"') {
+                inString = true;
+                result += ch;
+                continue;
+            }
+
+            if (ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t') continue;
+            result += ch;
+        }
+        return result;
+    }
+
     function parseOffsetHours(offsetText) {
         if (typeof offsetText !== 'string') return 0;
         const trimmed = offsetText.trim();
@@ -356,9 +386,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                 showStatus('请输入JSON字符串', false);
                 return;
             }
-            
-            const json = JSON.parse(editor.value);
-            const compressed = JSON.stringify(json);
+
+            JSON.parse(editor.value);
+            const compressed = minifyJsonText(editor.value);
             editor.value = compressed;
             updateLineNumbers();
             showStatus('JSON压缩成功！', true);
@@ -679,8 +709,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             // 如果解密结果是有效的JSON，自动格式化
             try {
-                const json = JSON.parse(decodedStr);
-                const formatted = JSON.stringify(json, null, 4);
+                const formatted = formatIncompleteJson(decodedStr);
                 editor.value = formatted;
                 updateLineNumbers();
                 showStatus('Base64解密成功，并且已自动格式化JSON！', true);
